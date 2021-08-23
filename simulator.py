@@ -13,6 +13,8 @@ def main(orig_ap, orig_hit, orig_crit, orig_exp, mh, oh, duration=60, total_sims
     spell_hit_chance = 0.05
     spell_crit_chance = 0.042
     boss_armor = 6950
+    graph_xdata = []
+    graph_ydata = []
 
     # Set special weapons
     dragon_wep = False
@@ -26,7 +28,7 @@ def main(orig_ap, orig_hit, orig_crit, orig_exp, mh, oh, duration=60, total_sims
         return random.random() <= 0.72 + hit_chance
 
     def melee_dodge():
-        return random.random() <= 0.9375 + expertise
+        return random.random() <= 0.935 + expertise
 
     def melee_crit():
         return random.random() <= crit_chance
@@ -86,6 +88,7 @@ def main(orig_ap, orig_hit, orig_crit, orig_exp, mh, oh, duration=60, total_sims
 
     for sim in range(total_sims):
         # Initializing variables for each sim.
+        damage_per_second = 0
         attack_power = orig_ap
         hit_chance = orig_hit / 100
         crit_chance = orig_crit / 100
@@ -111,9 +114,10 @@ def main(orig_ap, orig_hit, orig_crit, orig_exp, mh, oh, duration=60, total_sims
         last_oh_mongoose = -15
         unleashed_rage = False
         last_unleashed_rage = -10
-
         # Check to see if melee swings are up and check for hits, damage, windfury, and crits.
         for hundredth in range(duration * 100):
+            damage_per_hundredth = 0
+
             time = calc_time(hundredth)
             crit_counter = 0
             if round(last_mh_swing + mh_speed, 2) == time:
@@ -130,11 +134,13 @@ def main(orig_ap, orig_hit, orig_crit, orig_exp, mh, oh, duration=60, total_sims
                         crit_chance = update_crit(mh_mongoose, oh_mongoose)
                     dmg, crit = calc_dmg(attack_power, mh_bot, mh_top, orig_mh_speed)
                     total_mh_white += dmg
+                    damage_per_hundredth += dmg
                     crit_counter += crit
                     if last_wf + 3 <= time and random.random() <= 0.36:
                         last_wf = time
                         wf_dmg, crit = calc_wf_dmg(attack_power + 555, mh_bot, mh_top, orig_mh_speed)
                         total_mh_wf += wf_dmg
+                        damage_per_hundredth += wf_dmg
                         crit_counter += crit
             if round(last_oh_swing + oh_speed, 2) == time:
                 if flurry_count > 0 and time - last_mh_swing < 0.5:
@@ -147,53 +153,64 @@ def main(orig_ap, orig_hit, orig_crit, orig_exp, mh, oh, duration=60, total_sims
                         crit_chance = update_crit(mh_mongoose, oh_mongoose)
                     dmg, crit = calc_dmg(attack_power, oh_bot, oh_top, orig_oh_speed)
                     total_oh_white += dmg / 2
+                    damage_per_hundredth += dmg / 2
                     crit_counter += crit
                     if last_wf + 3 <= time and random.random() <= 0.36:
                         last_wf = time
                         wf_dmg, crit = calc_wf_dmg(attack_power + 555, oh_bot, oh_top, orig_oh_speed)
                         total_oh_wf += wf_dmg / 2
+                        damage_per_hundredth + wf_dmg / 2
                         crit_counter += crit
 
             # Check to see if spells are off cooldown and cast them.
             if next_cast <= time:
                 if last_ss + ss_cd <= time:
                     last_ss = time
-                    dmg, crit = calc_dmg(attack_power, mh_bot, mh_top, orig_mh_speed)
-                    if dragon_wep and check_dragon_haste():
-                        dragon_haste = True
-                        last_dragon_haste = time
-                    if check_mongoose():
-                        mh_mongoose = True
-                        last_mh_mongoose = time
-                        crit_chance = update_crit(mh_mongoose, oh_mongoose)
-                    total_ss += dmg
-                    crit_counter += crit
-                    if last_wf + 3 <= time and random.random() <= 0.36:
-                        last_wf = time
-                        wf_dmg, crit = calc_wf_dmg(attack_power + 555, mh_bot, mh_top, orig_mh_speed)
-                        total_mh_wf += wf_dmg
+                    if melee_dodge():
+                        dmg, crit = calc_dmg(attack_power, mh_bot, mh_top, orig_mh_speed)
+                        if dragon_wep and check_dragon_haste():
+                            dragon_haste = True
+                            last_dragon_haste = time
+                        if check_mongoose():
+                            mh_mongoose = True
+                            last_mh_mongoose = time
+                            crit_chance = update_crit(mh_mongoose, oh_mongoose)
+                        total_ss += dmg
+                        damage_per_hundredth += dmg
                         crit_counter += crit
-                    if check_mongoose():
-                        oh_mongoose = True
-                        last_mh_mongoose = time
-                        crit_chance = update_crit(mh_mongoose, oh_mongoose)
-                    dmg, crit = calc_dmg(attack_power, oh_bot, oh_top, orig_oh_speed)
-                    total_ss += dmg / 2
-                    crit_counter += crit
-                    if last_wf + 3 <= time and random.random() <= 0.36:
-                        last_wf = time
-                        wf_dmg, crit = calc_wf_dmg(attack_power + 555, oh_bot, oh_top, orig_oh_speed)
-                        total_oh_wf += wf_dmg / 2
+                        if last_wf + 3 <= time and random.random() <= 0.36:
+                            last_wf = time
+                            wf_dmg, crit = calc_wf_dmg(attack_power + 555, mh_bot, mh_top, orig_mh_speed)
+                            total_mh_wf += wf_dmg
+                            damage_per_hundredth += wf_dmg
+                            crit_counter += crit
+                        if check_mongoose():
+                            oh_mongoose = True
+                            last_mh_mongoose = time
+                            crit_chance = update_crit(mh_mongoose, oh_mongoose)
+                        dmg, crit = calc_dmg(attack_power, oh_bot, oh_top, orig_oh_speed)
+                        total_ss += dmg / 2
+                        damage_per_hundredth += dmg / 2
                         crit_counter += crit
+                        if last_wf + 3 <= time and random.random() <= 0.36:
+                            last_wf = time
+                            wf_dmg, crit = calc_wf_dmg(attack_power + 555, oh_bot, oh_top, orig_oh_speed)
+                            total_oh_wf += wf_dmg / 2
+                            damage_per_hundredth += wf_dmg / 2
+                            crit_counter += crit
                 elif last_shock + shock_cd <= time:
                     last_shock = time
                     if last_fs + fs_cd <= time:
                         if spell_hit():
                             last_fs = time
-                            total_fs += cast_flame_shock(attack_power)
+                            dmg = cast_flame_shock(attack_power)
+                            total_fs += dmg
+                            damage_per_hundredth += dmg
                     else:
                         if spell_hit():
-                            total_es += cast_earth_shock(attack_power)
+                            dmg = cast_earth_shock(attack_power)
+                            total_es += dmg
+                            damage_per_hundredth += dmg
 
             # Update buffs for attack speed and attack power.
             if crit_counter > 0:
@@ -213,6 +230,14 @@ def main(orig_ap, orig_hit, orig_crit, orig_exp, mh, oh, duration=60, total_sims
             mh_speed = update_weapon_speeds(orig_mh_speed, flurry_count, dragon_haste, mh_mongoose, oh_mongoose)
             oh_speed = update_weapon_speeds(orig_oh_speed, flurry_count, dragon_haste, mh_mongoose, oh_mongoose)
 
+            # Store graph data for every simulation
+            if damage_per_hundredth > 0 and sim == 0:
+                damage_per_second += damage_per_hundredth
+            if hundredth % 100 == 0 and sim == 0:
+                graph_xdata.append(time)
+                graph_ydata.append(round(damage_per_second))
+                damage_per_second = 0
+
     mh_white_dps = round(total_mh_white / (duration * total_sims))
     oh_white_dps = round(total_oh_white / (duration * total_sims))
     mh_wf_dps = round(total_mh_wf / (duration * total_sims))
@@ -221,5 +246,6 @@ def main(orig_ap, orig_hit, orig_crit, orig_exp, mh, oh, duration=60, total_sims
     fs_dps = round(total_fs / (duration * total_sims))
     es_dps = round(total_es / (duration * total_sims))
     total_dps = mh_white_dps + oh_white_dps + mh_wf_dps + oh_wf_dps + ss_dps + fs_dps + es_dps
+    dps_list = [mh_white_dps, oh_white_dps, mh_wf_dps, oh_wf_dps, ss_dps, fs_dps, es_dps, total_dps]
 
-    return [mh_white_dps, oh_white_dps, mh_wf_dps, oh_wf_dps, ss_dps, fs_dps, es_dps, total_dps]
+    return dps_list, graph_xdata, graph_ydata
